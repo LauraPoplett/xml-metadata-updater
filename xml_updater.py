@@ -1,5 +1,6 @@
 # This script updates fields in XML metadata (FGDC standard tags), that was originally created in ArcCatalog
 # for county data geodatabases and shapefiles. 
+#@author: https://github.com/LauraPoplett
 
 import os
 import openpyxl
