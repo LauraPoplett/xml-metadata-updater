@@ -2,7 +2,7 @@
 import bs4 
 from datetime import datetime
 import requests, re
-import unicodedata
+from unicodedata import normalize
 
 # create parseable soup object from the url
 def getSoup(url):
@@ -37,8 +37,9 @@ def parseRow(row):
     contact = 'error'
 
   # structure data and return
-  list = [county, contact]
-  return list
+  line = [county, contact]
+  clean = lintuni(line)
+  return clean
 
 # get information containted in panel div
 def parsePanel(panel, county_code):
@@ -46,31 +47,33 @@ def parsePanel(panel, county_code):
   # get address
   main = panel.select("address")
   primary = main[0]
-  temp = []
+  array = []
   for item in primary.contents:
     # here we weed for dumb characters and empty strings
     if item.string != None:
-		#for unicode error: try new_str = unicodedata.normalize("NFKD", unicode_str) after importing unicodedata??
-      string = ((item.string).encode('utf-8').strip()) 
+      string = (item.string).strip().encode('utf-8')
       if not string or string == '(':
         continue
       else:
         # destination for clean strings
-        temp.append(string)
+        array.append(string)
     else:
       continue
 
-  # extract phone number  
+  temp = []
+  for item in array:
+    temp.append(item.decode("utf-8"))
+
+  # extract phone number 
   phone = temp[len(temp)-1]
   temp.remove(temp[len(temp)-1])
-  if not phone.startswith('('):
-    phone = '(' + phone
-
+  if phone[0] != '(':
+    phone = u'(' + phone
+  
   # build address 
-  address = ""
+  address = []
   for item in temp:
-    address += item + "\n"
-  address = address.strip()
+    address.append(item.strip())
   
   # get alternate here if desired
     
@@ -80,8 +83,9 @@ def parsePanel(panel, county_code):
   email = footer[1].contents[0]
 
   # structure data and return
-  list = [address, phone, website, email]
-  return list
+  line = [address, phone, website, email]
+  clean = lintuni(line)
+  return clean
 
 # structure individual county data
 def buildCounty(rowList, panelList):
@@ -127,6 +131,22 @@ def makeCountyDb(url):
     counties[rowList[0]] = county
 
   return counties
+
+def lintuni(line):
+
+  clean = []
+  for item in line:
+    
+    if isinstance(item, str):
+      clean.append(str(item.replace("\xa0", " ")))
+    else:
+      sub_list = []
+      for i in item:
+        sub_list.append(str(i.replace("\xa0", " ")))
+      clean.append(sub_list)
+
+  return clean
+  
 
 # main branch if script is called directly 
 if __name__ == "__main__":
