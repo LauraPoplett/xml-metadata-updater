@@ -1,8 +1,11 @@
 #! /usr/local/bin
+# -*- coding: utf-8 -*- 
 import bs4 
 from datetime import datetime
 import requests, re
 from unicodedata import normalize
+
+adregex = re.compile(r"((\w+)( \w+)?\s?),\s?(WI)\s?(\d\d\d\d\d(-\d\d\d\d)?)")
 
 # create parseable soup object from the url
 def getSoup(url):
@@ -26,19 +29,24 @@ def parseRow(row):
   
   field = row.strong.text.lower()
   county = field[:-7]
-  #county = county.replace("\xa0", " ")
 
   # get contact name
   try:
     contact = row.span.text
-    #print(contact)
-    #contact = contact.replace("\xa0", " ") # remove non ascii 
   except:
-    contact = 'error'
+    contact = row.text.split("\r\n")[1]
+    
+
+  contactList = contact.split("-")
+  contactName = contactList[0].strip()
+  if len(contactList) > 1:
+    contactTitle = contactList[1].strip()
+  else:
+    contactTitle = ""
 
   # structure data and return
-  line = [county, contact]
-  clean = lintuni(line)
+  line = [county, contactName, contactTitle]
+  clean = encode_ascii(line)
   return clean
 
 # get information containted in panel div
@@ -47,36 +55,32 @@ def parsePanel(panel, county_code):
   # get address
   main = panel.select("address")
   primary = main[0]
-  array = []
+  panel_list = []
   for item in primary.contents:
     # here we weed for dumb characters and empty strings
     if item.string != None:
-      string = (item.string).strip().encode('utf-8')
+      string = item.string.strip()
       if not string or string == '(':
         continue
       else:
-        # destination for clean strings
-        array.append(string)
+        panel_list.append(string)
     else:
       continue
 
-  temp = []
-  for item in array:
-    temp.append(item.decode("utf-8"))
-
   # extract phone number 
-  phone = temp[len(temp)-1]
-  temp.remove(temp[len(temp)-1])
+  phone = panel_list[len(panel_list)-1]
+  panel_list.remove(panel_list[len(panel_list)-1])
   if phone[0] != '(':
-    phone = u'(' + phone
+    phone = '(' + phone
   
   # build address 
   address = []
-  for item in temp:
+  for item in panel_list:
     address.append(item.strip())
+  print(address[len(address)-1].encode("ascii", "ignore"))
+  res = adregex.search(address[len(address)-1].encode("ascii", "ignore"))
+  print(res.group(1))
   
-  # get alternate here if desired
-    
   # get footer items
   footer = panel.select('.panel-footer a')
   website = footer[0].contents[0]
@@ -84,7 +88,7 @@ def parsePanel(panel, county_code):
 
   # structure data and return
   line = [address, phone, website, email]
-  clean = lintuni(line)
+  clean = encode_ascii(line)
   return clean
 
 # structure individual county data
@@ -93,7 +97,8 @@ def buildCounty(rowList, panelList):
   # assemble data and return
   county = {
     'countyName': rowList[0], 
-    'contactName': rowList[1], 
+    'contactName': rowList[1],
+    'contactTitle': rowList[2],
     'address': panelList[0], 
     'phone': panelList[1], 
     'website': panelList[2], 
@@ -132,21 +137,19 @@ def makeCountyDb(url):
 
   return counties
 
-def lintuni(line):
+def encode_ascii(line):
 
   clean = []
   for item in line:
-    
-    if isinstance(item, str):
-      clean.append(str(item.replace("\xa0", " ")))
-    else:
+    if isinstance(item, list):
       sub_list = []
       for i in item:
-        sub_list.append(str(i.replace("\xa0", " ")))
+        sub_list.append(i.encode("ascii", "ignore"))
       clean.append(sub_list)
-
+    else:
+      clean.append(item.encode("ascii", "replace").replace("?", " "))
+      
   return clean
-  
 
 # main branch if script is called directly 
 if __name__ == "__main__":
