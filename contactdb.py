@@ -77,9 +77,13 @@ def parsePanel(panel, county_code):
   address = []
   for item in panel_list:
     address.append(item.strip())
+    
+  # TODO: split address into fields for address[list] city_name, postal_code.
+  """
   print(address[len(address)-1].encode("ascii", "ignore"))
   res = adregex.search(address[len(address)-1].encode("ascii", "ignore"))
   print(res.group(1))
+  """
   
   # get footer items
   footer = panel.select('.panel-footer a')
