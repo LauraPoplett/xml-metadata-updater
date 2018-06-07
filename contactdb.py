@@ -1,11 +1,9 @@
 #! /usr/local/bin
 # -*- coding: utf-8 -*- 
-import bs4 
+import bs4, requests, re 
 from datetime import datetime
-import requests, re
-from unicodedata import normalize
 
-adregex = re.compile(r"((\w+)( \w+)?\s?),\s?(WI)\s?(\d\d\d\d\d(-\d\d\d\d)?)")
+adregex = re.compile(r"(.*),\s?(WI)\s?(\d\d\d\d\d(-\d\d\d\d)?)")
 
 # create parseable soup object from the url
 def getSoup(url):
@@ -22,9 +20,6 @@ def getSoup(url):
   return soup
 
 # get information contained in row div
-# this function has more robust error handling than the others
-# generally it is better that the program crash catastrophically
-# this error handling was initially developed to save time
 def parseRow(row):
   
   field = row.strong.text.lower()
@@ -36,15 +31,21 @@ def parseRow(row):
   except:
     contact = row.text.split("\r\n")[1]
     
-
-  contactList = contact.split("-")
+  # split contact name and title
+  contactList = []
+  if "-" in contact:
+    contactList = contact.split("-")
+  else:
+    contactList = contact.split(", ")
   contactName = contactList[0].strip()
+  
+  # lint for contacts with no title specified
   if len(contactList) > 1:
     contactTitle = contactList[1].strip()
   else:
-    contactTitle = ""
+    contactTitle = "" # specific language could go here
 
-  # structure data and return
+  # structure fields, convert to acsii, and return
   line = [county, contactName, contactTitle]
   clean = encode_ascii(line)
   return clean
@@ -57,10 +58,9 @@ def parsePanel(panel, county_code):
   primary = main[0]
   panel_list = []
   for item in primary.contents:
-    # here we weed for dumb characters and empty strings
     if item.string != None:
       string = item.string.strip()
-      if not string or string == '(':
+      if not string or string == '(': # sometimes a lone ( gets read as an item
         continue
       else:
         panel_list.append(string)
@@ -71,27 +71,28 @@ def parsePanel(panel, county_code):
   phone = panel_list[len(panel_list)-1]
   panel_list.remove(panel_list[len(panel_list)-1])
   if phone[0] != '(':
-    phone = '(' + phone
+    phone = '(' + phone # add back in that stray (
   
   # build address 
   address = []
   for item in panel_list:
     address.append(item.strip())
     
-  # TODO: split address into fields for address[list] city_name, postal_code.
-  """
-  print(address[len(address)-1].encode("ascii", "ignore"))
+  # split address into fields for address[list] city_name, postal_code.
   res = adregex.search(address[len(address)-1].encode("ascii", "ignore"))
-  print(res.group(1))
-  """
+  addressLines = []
+  for i in range(len(address)-1):
+    addressLines.append(address[i])
+  contactCity = res.group(1)
+  contactPostalCode = res.group(3)
   
-  # get footer items
+  # get footer items (website and email)
   footer = panel.select('.panel-footer a')
   website = footer[0].contents[0]
   email = footer[1].contents[0]
 
-  # structure data and return
-  line = [address, phone, website, email]
+  # structure fields, convert to ascii, and return
+  line = [addressLines, contactCity, contactPostalCode, phone, website, email]
   clean = encode_ascii(line)
   return clean
 
@@ -103,10 +104,12 @@ def buildCounty(rowList, panelList):
     'countyName': rowList[0], 
     'contactName': rowList[1],
     'contactTitle': rowList[2],
-    'address': panelList[0], 
-    'phone': panelList[1], 
-    'website': panelList[2], 
-    'email': panelList[3]
+    'address': panelList[0],
+    'contactCity': panelList[1],
+    'contactPostalCode': panelList[2],
+    'phone': panelList[3], 
+    'website': panelList[4], 
+    'email': panelList[5]
   }
   return county
 
@@ -117,9 +120,6 @@ def makeCountyDb(url):
   # create soup obj
   soup = getSoup(url)
   res = soup.find_all(attrs={'class': 'user-row'})
-
-  #for row in res:
-    #print(row)
 
   # initialize database
   counties = {}
@@ -141,6 +141,7 @@ def makeCountyDb(url):
 
   return counties
 
+# this function exists to convert strings to ascii before they are added to the dict
 def encode_ascii(line):
 
   clean = []
@@ -151,11 +152,11 @@ def encode_ascii(line):
         sub_list.append(i.encode("ascii", "ignore"))
       clean.append(sub_list)
     else:
-      clean.append(item.encode("ascii", "replace").replace("?", " "))
+      clean.append(item.encode("ascii", "replace").replace("?", " ").replace("  ", " "))
       
   return clean
 
-# main branch if script is called directly 
+# main branch if script is called directly and is for testing purposes
 if __name__ == "__main__":
 
   # initialize time reporting
@@ -164,7 +165,7 @@ if __name__ == "__main__":
   # hardcoded url for runing as __main__
   url = 'http://www.wlion.org/LIOs'
   
-  # call cor function
+  # call core function
   counties = makeCountyDb(url)
 
   # report runing time and useage info
