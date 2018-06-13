@@ -1,7 +1,7 @@
 #! /usr/local/bin
 # -*- coding: utf-8 -*- 
 
-""""
+"""
 - Sumation of Fields - 'fieldName': description. (type)
 'countyName': a lowercase nospace representation of the county name. (string)
 'contactName': the name given for the LIO point of contact. (string)
@@ -12,7 +12,7 @@
 'phone': the point of contact phone number. (string)
 'website': the point of contact's office website. (string)
 'email': the email listed of the point of contact. (string)
-""""
+"""
 
 import bs4, requests, re 
 from datetime import datetime
