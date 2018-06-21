@@ -29,18 +29,21 @@ def change_links(root):	#iterate over the sub-elements within the citation eleme
                             file_name = fname.text
                             new_link = 'https://gisdata.wisc.edu/public/' + file_name + '.zip'
                     elem.text = new_link #change link to public version
+                    
 def update_purpose(root): #remove restrictions from 'purpose' section of metadata
 	for elem in root.iter('purpose'):
 		p = elem.text
 		if ('faculty' in p):
-			elem.text = 'This layer is intended for reference and mapping purposes, and may be used for basic applications such as viewing, querying, and map output production, or to provide a basemap to support graphical overlays and analysis with other spatial data.'		
+			elem.text = 'This layer is intended for reference and mapping purposes, and may be used for basic applications such as viewing, querying, and map output production, or to provide a basemap to support graphical overlays and analysis with other spatial data.'
+			
 def remove_restrictions(root): #remove usage restrictions from metadata
 	for elem in root.iter('accconst'):
 		if('Access is granted to licensee only' in elem.text):
 			elem.text = '' 
 	for elem in root.iter('useconst'):
 		if('For educational noncommercial use only' in elem.text):
-			elem.text = '' 
+			elem.text = ''
+			
 def add_lang(root):#add note about update in supplimental info section
 	for elem in root.iter('descript'):
 		test = elem.find('supplinf')
@@ -52,9 +55,11 @@ def add_lang(root):#add note about update in supplimental info section
 			info = elem.find('supplinf').text
 			newInfo = info + ' This metadata was updated in fall of 2017 to reflect that the data is no longer restricted and has been opened for public use.'
 			elem.find('supplinf').text = newInfo
+			
 def ch_pub_date(root):
 	for elem in root.iter('pubdate'):
-		elem.text = time.strftime('%Y%m%d')		
+		elem.text = time.strftime('%Y%m%d')
+		
 def add_link(county_name,root):#if county now has a website, get county url from excel sheet and add to metadata			
 	from openpyxl import load_workbook
 	try:
@@ -70,6 +75,7 @@ def add_link(county_name,root):#if county now has a website, get county url from
 		url = url_dict[county_name]
 		for elem in root.iter('citeinfo'):
 			ET.SubElement(elem, 'onlink').text = url
+			
 def update_contacts(county_name,root):
         for elem in root.iter('ptcontac'):
             for tag in elem.iter('cntper'):
@@ -77,7 +83,8 @@ def update_contacts(county_name,root):
             for tag in elem.iter('cntvoice'):
                 tag.text = counties[county_name.lower().strip()]['phone'].decode('ascii','ignore')
             for tag in elem.iter('cntemail'):
-                tag.text = counties[county_name.lower().strip()]['email'].decode('ascii','ignore')           
+                tag.text = counties[county_name.lower().strip()]['email'].decode('ascii','ignore')
+                
 def open_files(input, output):
 	if os.path.isfile(input):
 		try:
